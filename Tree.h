@@ -8,9 +8,15 @@
 #include <memory>
 #include <algorithm>
 
-template <std::integral T, unsigned bit_length>
+template <typename T, unsigned bit_length>
 class Tree {
-public:
+
+};
+
+
+template <std::integral T, unsigned bit_length>
+class Tree<T, bit_length> {
+    public:
     Tree() : bottom_layer(1 << (bit_length / 2)), minimum(std::nullopt), maximum(std::nullopt), bitmask_high(((1<<bit_length/2) - 1) << bit_length/2), bitmask_low((1<<(bit_length/2)) - 1) {}
 
     void insert(T value) {
@@ -118,7 +124,6 @@ private:
     uint64_t bitmask_low;
 };
 
-
 enum class State {
     EMPTY,
     ZERO,
@@ -146,6 +151,8 @@ public:
                     state = State::BOTH;
                 }
                 break;
+            case State::BOTH:
+                break;
         }
     }
 
@@ -163,6 +170,8 @@ public:
                 break;
             case State::BOTH:
                 state = value == 0 ? State::ONE : State::ZERO;
+                break;
+            case State::EMPTY:
                 break;
         }
     }
