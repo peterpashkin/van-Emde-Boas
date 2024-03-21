@@ -8,7 +8,7 @@
 
 int main() {
     using namespace std::chrono;
-    Tree<uint64_t, 32> tree;
+    Tree<uint64_t, 37> tree;
     std::vector<uint64_t> values;
 
     // generate 1million distinct random integer
@@ -35,7 +35,7 @@ int main() {
     }
     stop = high_resolution_clock::now();
     duration = duration_cast<microseconds>(stop - start);
-    std::cout << "Tree::succ: " << duration.count() << " microseconds" << std::endl;
+    std::cout << "Tree::succ::sort: " << duration.count() << " microseconds" << std::endl;
 
 
 

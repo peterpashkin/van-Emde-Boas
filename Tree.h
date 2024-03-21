@@ -7,17 +7,37 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <functional>
 
 template <typename T, unsigned bit_length>
 class Tree {
+public:
+    Tree(std::function<uint64_t(T)> func) : hash(func) {}
+    void insert(T value) {
+        actual_tree.insert(hash(value));
+    }
+    void remove(T value) {
+        actual_tree.remove(hash(value));
+    }
+    bool member(T value) {
+        return actual_tree.member(hash(value));
+    }
+    std::optional<T> min() {
+        std::optional<uint64_t> result = actual_tree.min();
+        if(result == std::nullopt) return std::nullopt;
+        return hash(result.value());
+    }
 
+private:
+    Tree<uint64_t, bit_length> actual_tree;
+    std::function<uint64_t(T)> hash;
 };
 
 
 template <std::integral T, unsigned bit_length>
 class Tree<T, bit_length> {
     public:
-    Tree() : bottom_layer(1 << (bit_length / 2)), minimum(std::nullopt), maximum(std::nullopt), bitmask_high(((1<<bit_length/2) - 1) << bit_length/2), bitmask_low((1<<(bit_length/2)) - 1) {}
+    Tree() : bottom_layer(1 << (bit_length / 2)), minimum(std::nullopt), maximum(std::nullopt), bitmask_high(((1<<bit_length/2) - 1) << (bit_length/2 + bit_length%2)), bitmask_low((1<<(bit_length/2 + bit_length%2)) - 1) {}
 
     void insert(T value) {
         if(minimum == std::nullopt) {
@@ -26,14 +46,14 @@ class Tree<T, bit_length> {
             if(value < minimum) std::swap(minimum.value(), value);
             if(value > maximum) maximum = value;
 
-            T high_value = value >> (bit_length / 2);
+            T high_value = value >> (bit_length/2 + bit_length%2);
             T low_value = value & bitmask_low;
 
             if(upper_layer == nullptr) {
                 upper_layer = std::make_unique<Tree<T, bit_length/2>>();
             }
             if(bottom_layer[high_value] == nullptr) {
-                bottom_layer[high_value] = std::make_unique<Tree<T, bit_length/2>>();
+                bottom_layer[high_value] = std::make_unique<Tree<T, bit_length/2 + bit_length%2>>();
             }
 
             if(bottom_layer[high_value]->min() == std::nullopt) {
@@ -55,11 +75,11 @@ class Tree<T, bit_length> {
         if(value == minimum) {
             T firstcluster = upper_layer->min().value();
             T offset = bottom_layer[firstcluster]->min().value();
-            value = (firstcluster << (bit_length / 2)) | offset;
+            value = (firstcluster << (bit_length / 2 + bit_length%2)) | offset;
             minimum = value;
         }
 
-        T high_value = value >> (bit_length / 2);
+        T high_value = value >> (bit_length/2 + bit_length%2);
         T low_value = value & bitmask_low;
 
         bottom_layer[high_value]->remove(low_value);
@@ -70,22 +90,22 @@ class Tree<T, bit_length> {
                 if(upper_max == std::nullopt) {
                     maximum = minimum;
                 } else {
-                    maximum = (upper_max.value() << (bit_length / 2)) | bottom_layer[upper_max.value()]->max().value();
+                    maximum = (upper_max.value() << (bit_length/2 + bit_length%2)) | bottom_layer[upper_max.value()]->max().value();
                 }
             }
 
         } else {
             if(value == maximum) {
                 T offset = bottom_layer[high_value]->max().value();
-                maximum = (high_value << (bit_length / 2)) | offset;
+                maximum = (high_value << (bit_length/2 + bit_length%2)) | offset;
             }
         }
     }
 
     bool member(T value) {
         if (value == minimum) return true;
-        if (bottom_layer[value >> (bit_length/2)] == nullptr) return false;
-        return bottom_layer[value >> (bit_length/2)]->member(value & bitmask_low);
+        if (bottom_layer[value >> (bit_length/2 + bit_length%2)] == nullptr) return false;
+        return bottom_layer[value >> (bit_length/2 + bit_length%2)]->member(value & bitmask_low);
     }
 
     std::optional<T> min() {
@@ -97,15 +117,15 @@ class Tree<T, bit_length> {
 
     std::optional<T> succ(T value) {
         if(minimum.has_value() && value < minimum) return minimum;
-        std::optional<T> max_in_cluster = bottom_layer[value>>(bit_length/2)] == nullptr ? std::nullopt : bottom_layer[value >> (bit_length/2)]->max();
+        std::optional<T> max_in_cluster = bottom_layer[value>>(bit_length/2 + bit_length%2)] == nullptr ? std::nullopt : bottom_layer[value >> (bit_length/2 + bit_length%2)]->max();
         if(max_in_cluster.has_value() && max_in_cluster.value() > (value & bitmask_low)) {
-            T offset = bottom_layer[value >> (bit_length/2)]->succ(value & bitmask_low).value();
+            T offset = bottom_layer[value >> (bit_length/2 + bit_length%2)]->succ(value & bitmask_low).value();
             return (value & bitmask_high) | offset;
         } else {
-            std::optional<T> next_cluster = upper_layer == nullptr ? std::nullopt : upper_layer->succ(value >> (bit_length/2));
+            std::optional<T> next_cluster = upper_layer == nullptr ? std::nullopt : upper_layer->succ(value >> (bit_length/2 + bit_length%2));
             if(next_cluster.has_value()) {
                 T offset = bottom_layer[next_cluster.value()]->min().value();
-                return (next_cluster.value() << (bit_length / 2)) | offset;
+                return (next_cluster.value() << (bit_length/2 + bit_length%2)) | offset;
             } else {
                 return std::nullopt;
             }
@@ -115,7 +135,7 @@ class Tree<T, bit_length> {
     std::optional<T> pred(T value);
 
 private:
-    std::vector<std::unique_ptr<Tree<T, bit_length/2>>> bottom_layer;
+    std::vector<std::unique_ptr<Tree<T, bit_length/2 + bit_length%2>>> bottom_layer;
     std::unique_ptr<Tree<T, bit_length/2>> upper_layer;
     std::optional<T> minimum;
     std::optional<T> maximum;
